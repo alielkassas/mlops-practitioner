@@ -8,9 +8,12 @@ Provides reusable tools like:
 
 import time
 import functools
+import logging
 from typing import Any, Callable, TypeVar, cast
 
-from prodml.logging_config import correlation_id_var, logger
+from prodml.logging_config import correlation_id_var
+
+logger = logging.getLogger(__name__)
 
 # Type variable for generic function types
 F = TypeVar('F', bound=Callable[..., Any])
