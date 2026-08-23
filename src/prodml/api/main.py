@@ -100,14 +100,6 @@ async def predict(request: PredictRequest):
         Predicted duration.
     """
     start_time = time.perf_counter()
-    request_id = str(uuid.uuid4())[:8]
-
-    # WARNING Level check: Input outside standard training range (> 100 miles)
-    if request.trip_distance > 100:
-        logger.warning(
-            "Input trip_distance exceeds normal training range (>100 miles)",
-            extra={"trip_distance": request.trip_distance}
-        )
     
     try:
         predictor = get_predictor()
@@ -117,11 +109,23 @@ async def predict(request: PredictRequest):
         duration = predictor.predict_one(features)
 
     except ValueError as e:
-        logger.warning("prediction_validation_error", extra={"error": str(e)})
+        logger.warning(
+            "prediction_validation_error", 
+            extra={
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "correlation_id": correlation_id_var.get(),
+                })
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
         
     except Exception as e:
-        logger.error("prediction_failed", extra={"error": str(e)})
+        logger.error(
+            "prediction_failed", 
+            extra={
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "correlation_id": correlation_id_var.get()
+            })
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal prediction error")
 
     processing_time_ms = (time.perf_counter() - start_time) * 1000
@@ -129,7 +133,7 @@ async def predict(request: PredictRequest):
     logger.info(
         "prediction_success",
         extra={
-            "request_id": correlation_id_var.get(),
+            "correlation_id": correlation_id_var.get(),
             "trip_distance": request.trip_distance,
             "duration_min": duration,
             "processing_time_ms": processing_time_ms
@@ -137,7 +141,7 @@ async def predict(request: PredictRequest):
     )
     
     return PredictResponse(
-        request_id=request_id,
+        correlation_id=correlation_id_var.get(),
         duration_min=duration,
         processing_time_ms=processing_time_ms
     )
@@ -155,7 +159,6 @@ async def predict_batch(request: PredictBatchRequest):
         List of predicted durations.
     """
     start_time = time.perf_counter()
-    request_id = str(uuid.uuid4())[:8]
     
     try:
         predictor = get_predictor()
@@ -166,11 +169,22 @@ async def predict_batch(request: PredictBatchRequest):
         
         
     except ValueError as e:
-        logger.warning("batch_prediction_validation_error", extra={"error": str(e)})
+        logger.warning("batch_prediction_validation_error", 
+                extra={
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "correlation_id": correlation_id_var.get(),
+            })
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
         
     except Exception as e:
-        logger.error("batch_prediction_failed", extra={"error": str(e)})
+        logger.error(
+            "batch_prediction_failed", 
+            extra={
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+                "correlation_id": correlation_id_var.get()
+            })
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal batch prediction error")
 
     processing_time_ms = (time.perf_counter() - start_time) * 1000
@@ -178,14 +192,14 @@ async def predict_batch(request: PredictBatchRequest):
     logger.info(
         "batch_prediction_success",
         extra={
-            "request_id": correlation_id_var.get(),
+            "correlation_id": correlation_id_var.get(),
             "batch_size": len(features_list),
             "processing_time_ms": processing_time_ms
         }
     )
     
     return PredictBatchResponse(
-        request_id=request_id,
+        correlation_id=correlation_id_var.get(),
         predictions=durations,
         processing_time_ms=processing_time_ms
     )
