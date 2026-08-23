@@ -30,6 +30,17 @@ class PredictBatchRequest(BaseModel):
         min_length=1,
         max_length=100
     )
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "trips": [
+                    {"trip_distance": 5.2},
+                    {"trip_distance": 3.1}
+                ]
+            }
+        }
+    }
+
 class BaseResponse(BaseModel):
     correlation_id: str
     processing_time_ms: float
