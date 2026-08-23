@@ -141,8 +141,9 @@ async def predict(request: PredictRequest):
     )
     
     return PredictResponse(
+        model_version=settings.model_version,
         correlation_id=correlation_id_var.get(),
-        duration_min=duration,
+        prediction=duration,
         processing_time_ms=processing_time_ms
     )
 
@@ -199,7 +200,9 @@ async def predict_batch(request: PredictBatchRequest):
     )
     
     return PredictBatchResponse(
+        model_version=settings.model_version,
         correlation_id=correlation_id_var.get(),
         predictions=durations,
-        processing_time_ms=processing_time_ms
+        processing_time_ms=processing_time_ms,
+        count=len(durations),
     )
