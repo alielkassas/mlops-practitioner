@@ -74,6 +74,12 @@ class Settings(BaseSettings):
         default=8000,
         description="Port to bind the API server"
     )
+        # ---------- Model type ----------
+    model_version: str = Field(
+        default="v0.1.0",
+        description="Model version identifier"
+    )
+    
     
 
 
