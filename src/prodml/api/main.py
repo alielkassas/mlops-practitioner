@@ -9,6 +9,7 @@ Provides:
 """
 
 from fastapi import FastAPI, HTTPException, status
+from datetime import datetime, timezone
 import time
 import uuid
 import logging
@@ -81,7 +82,7 @@ async def health_check():
     return HealthResponse(
         status="healthy",
         model_loaded=predictor is not None and predictor._is_loaded,
-        timestamp=time.time()
+        timestamp=datetime.now(timezone.utc).isoformat()
     )
 
 
