@@ -5,6 +5,7 @@ Provides:
 - POST /predict: Single prediction endpoint
 - POST /predict_batch: Batch prediction endpoint
 - GET /health: Health check endpoint
+- GET /metadata: Model metadata endpoint
 - Auto-generated OpenAPI documentation at /docs
 """
 
@@ -13,6 +14,7 @@ from datetime import datetime, timezone
 import time
 import uuid
 import logging
+from contextlib import asynccontextmanager
 
 from prodml.api.schemas import (
     PredictRequest,
@@ -29,11 +31,38 @@ from prodml.logging_config import setup_logging, correlation_id_var
 setup_logging()
 logger = logging.getLogger(__name__)
 
+# ---------- Global Predictor ----------
+predictor: DurationPredictor = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    Lifespan context manager for loading the model once at startup.
+    
+    This is the correct way to load models - once at startup, not per request.
+    Loading per-request is the most common beginner mistake.
+    """
+    global predictor
+    
+    logger.info("Starting up API server and loading ML model into memory...")
+    try:
+        predictor = DurationPredictor()
+        predictor.load()
+        logger.info("Model loaded successfully into memory.")
+    except Exception as e:
+        logger.error("Failed to load model at startup", extra={"error": str(e)})
+    
+    yield  # Application runs here
+    
+    # Cleanup if needed
+    logger.info("Shutting down API server...")
+
 
 app = FastAPI(
     title="Ride Duration Prediction API",
     description="Predict taxi ride duration using machine learning",
-    version="0.1.0"
+    version="0.1.0",
+    lifespan=lifespan,
 )
 
 # Initialize predictor (lazy loading)
