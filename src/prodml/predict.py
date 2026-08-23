@@ -73,6 +73,16 @@ class DurationPredictor:
             }
                     )       
         return self
+    def _ensure_loaded(self) -> None:
+        """Ensure the model is loaded into memory (Dry principle)."""
+        if not self._is_loaded:
+            logger.warning(
+                "Model not loaded, loading now automatically..."و
+                extra={
+                    "correlation_id": correlation_id_var.get(),
+                }
+            )
+            self.load()
 
     @timed
     def predict_one(self, features: Dict[str, Any]) -> float:
@@ -88,9 +98,7 @@ class DurationPredictor:
         Raises:
             ValueError: If required features are missing from any item.
         """
-        if not self._is_loaded:
-            logger.warning("Model not loaded, loading now")
-            self.load()
+        self._ensure_loaded()
         # Validate required features dynamically if the model supports it, 
         # or fallback to checking essential keys
         expected_features = getattr(self._model, "feature_names_in_", ['trip_distance'])
@@ -162,7 +170,6 @@ class DurationPredictor:
             List of predicted durations.
         """
         self._ensure_loaded()
-
         # Get expected features from the model if available
         expected_features = getattr(self._model, "feature_names_in_", ['trip_distance'])
         
