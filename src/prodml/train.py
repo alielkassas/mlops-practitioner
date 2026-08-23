@@ -14,13 +14,14 @@ from sklearn.linear_model import LinearRegression
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.metrics import mean_absolute_error, root_mean_squared_error
 from typing import Tuple, Any
+import logging
+
 
 from prodml.config import settings
 from prodml.data import load_data, split_data
 from prodml.features import calc_duration
 from prodml.utils import timed
-import logging
-from prodml.logging_config import setup_logging
+from prodml.logging_config import setup_logging, correlation_id_var
 
 setup_logging()
 logger = logging.getLogger(__name__)
@@ -55,34 +56,61 @@ def train_model() -> Tuple[float, float]:
     Returns:
         Tuple of (rmse, mae) on validation set.
     """
-    # 1. Load and clean data
+    # Load and clean data
     df = load_data()
     df = calc_duration(df)
-    logger.info(f"Loaded {len(df)} rows")
+
+    logger.info(
+        "Data loaded successfully",
+        extra={
+            "n_rows": df.shape[0],
+            "n_cols": df.shape[1],
+            "correlation_id": correlation_id_var.get(),
+        }
+        )
     
-    # 2. Split data
+    # Split data
     X_train, X_val, y_train, y_val = split_data(df)
-    logger.info(f"Training set: {len(X_train)}, Validation set: {len(X_val)}")
+    logger.info(
+        "Data splitted successfully",
+        extra={
+            "train_size": len(X_train),
+            "val_size": len(X_val),
+            "correlation_id": correlation_id_var.get(),
+        }
+    )
     
-    # 5. Train model
+    # Train model
     model = get_model()
     model.fit(X_train, y_train)
-    logger.info(f"Model training completed: {type(model).__name__}")
     
-    # 6. Evaluate
+    # Evaluate
     y_pred = model.predict(X_val)
 
     rmse = root_mean_squared_error(y_val, y_pred)
     mae = mean_absolute_error(y_val, y_pred)
     
-    logger.info(f"Validation RMSE: {rmse:.2f}")
-    logger.info(f"Validation MAE: {mae:.2f}")
+    logger.info(
+        "Model training completed successfully",
+        extra={
+            "model_type": type(model).__name__,
+            "rmse": rmse,
+            "mae": mae,
+            "correlation_id": correlation_id_var.get(),
+        }
+    )
     
-    # 7. Save model
+    # Save model
     os.makedirs(settings.model_path.parent, exist_ok=True)
     joblib.dump(model, settings.model_path)
     
-    logger.info(f"Model saved to {settings.model_path}")
+    logger.info(
+        "Model saved successfully", 
+        extra={
+            "path": str(settings.model_path),
+            "correlation_id": correlation_id_var.get(),
+        }
+    )
     
     return rmse, mae
 
@@ -90,8 +118,6 @@ def train_model() -> Tuple[float, float]:
 def main() -> None:
     """Entry point for the prodml-train command."""
     rmse, mae = train_model()
-    print(f"   RMSE: {rmse:.2f} minutes")
-    print(f"   MAE:  {mae:.2f} minutes")
 
 if __name__ == "__main__":
     main()
