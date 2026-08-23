@@ -31,7 +31,7 @@ class PredictBatchRequest(BaseModel):
         max_length=100
     )
 class BaseResponse(BaseModel):
-    request_id: str
+    correlation_id: str
     processing_time_ms: float
 
 class PredictResponse(BaseResponse):
