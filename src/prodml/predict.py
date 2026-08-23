@@ -10,11 +10,13 @@ import joblib
 from typing import Any, Dict, List, Optional
 import pandas as pd
 import numpy as np
+import logging
 
 from prodml.config import settings
 from prodml.utils import timed
-from prodml.logging_config import logger, correlation_id_var
+from prodml.logging_config import correlation_id_var
 
+logger = logging.getLogger(__name__)
 
 class DurationPredictor:
     """
@@ -54,10 +56,22 @@ class DurationPredictor:
         if model_path is None:
             model_path = settings.model_path
 
-        logger.info(f"Loading model from {settings.model_path}")
+        logger.info(
+            "Loading model from disk",
+            extra={
+                "model_path": str(settings.model_path),
+                "correlation_id": correlation_id_var.get(),
+            }
+                    )
         self._model = joblib.load(model_path)
         self._is_loaded = True
-        logger.info("Model loaded successfully")        
+        logger.info(
+            "Model loaded successfully",
+            extra={
+                "model_path": str(settings.model_path),
+                "correlation_id": correlation_id_var.get(),
+            }
+                    )       
         return self
 
     @timed
@@ -83,6 +97,17 @@ class DurationPredictor:
         missing = [f for f in expected_features if f not in features]
         if missing:
             raise ValueError(f"Missing required features: {missing}")
+
+        if features.get("trip_distance", 0) > 100:
+            logger.warning(
+                "Input outside training range",
+                extra={
+                    "feature": "trip_distance",
+                    "value": features.get("trip_distance", 0),
+                    "training_range_max": 100,
+                    "correlation_id": correlation_id_var.get(),
+                }
+            )
         
         values = [features[col] for col in expected_features]
 
