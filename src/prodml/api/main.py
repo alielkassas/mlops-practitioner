@@ -10,6 +10,9 @@ Provides:
 """
 
 from fastapi import FastAPI, HTTPException, status, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
 from datetime import datetime, timezone
 import time
 import uuid
@@ -96,6 +99,45 @@ async def correlation_id_middleware(request:Request, call_next):
         )
     
     return response
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Handle request validation errors and return a structured 422 response.
+
+    Args:
+        request (Request): The incoming FastAPI HTTP request object.
+        exc (RequestValidationError): The validation exception containing details 
+            about the failed validation rules.
+
+    Returns:
+        JSONResponse: A FastAPI JSON response with status code 422 containing 
+        a descriptive message and a list of validation error items.
+    
+    Example:
+        If a user sends a negative trip distance, this handler formats the output as:
+        {
+            "message": "Validation error in request parameters",
+            "errors": [...]
+        }
+    """
+    logger.warning("validation_error", 
+                   extra={
+                       "error": str(exc), 
+                        "path": request.url.path,
+                        "method": request.method,
+                        "client_ip": request.client.host if request.client else "unknown",
+                       "correlation_id": correlation_id_var.get(),
+                       }
+                    )
+
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "message": "Validation error in request parameters",
+            "errors": exc.errors(),
+        }
+    )
 
 def get_predictor() -> DurationPredictor:
     """
