@@ -268,16 +268,6 @@ async def predict(request: PredictRequest):
                 "correlation_id": correlation_id_var.get(),
                 })
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-        
-    except Exception as e:
-        logger.error(
-            "prediction_failed", 
-            extra={
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "correlation_id": correlation_id_var.get()
-            })
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal prediction error")
 
     processing_time_ms = (time.perf_counter() - start_time) * 1000
     
@@ -329,16 +319,6 @@ async def predict_batch(request: PredictBatchRequest):
             })
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
         
-    except Exception as e:
-        logger.error(
-            "batch_prediction_failed", 
-            extra={
-                "error_type": type(e).__name__,
-                "error_message": str(e),
-                "correlation_id": correlation_id_var.get()
-            })
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal batch prediction error")
-
     processing_time_ms = (time.perf_counter() - start_time) * 1000
             
     logger.info(
