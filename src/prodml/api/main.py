@@ -70,9 +70,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Initialize predictor (lazy loading)
-predictor = None
-
 @app.middleware("http")
 async def correlation_id_middleware(request:Request, call_next):
     """Extracts or generates a correlation ID, stores it in contextvars, and returns header."""
@@ -268,7 +265,7 @@ async def predict(request: PredictRequest):
                 "correlation_id": correlation_id_var.get(),
                 })
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
-
+    
     processing_time_ms = (time.perf_counter() - start_time) * 1000
     
     logger.info(
