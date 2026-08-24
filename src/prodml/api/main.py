@@ -12,7 +12,6 @@ Provides:
 from fastapi import FastAPI, HTTPException, status, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-
 from datetime import datetime, timezone
 import time
 import uuid
@@ -139,6 +138,43 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         }
     )
 
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Handle unexpected exceptions and return a structured 500 response.
+
+    Args:
+        request (Request): The incoming FastAPI HTTP request object.
+        exc (Exception): The unexpected exception that occurred during request processing.
+    Returns:
+        JSONResponse: A FastAPI JSON response with status code 500 containing
+        a generic error message and the current request correlation ID.
+    
+    Example:
+        If an unexpected database or model error occurs, this handler formats 
+        the client response as:
+        {
+            "message": "Internal server error.",
+            "correlation_id": "13d27f8f-1058-4b77-856e-d55fae76eb42"
+        }
+    """
+    logger.error("internal_server_error", 
+                 exc_info=True, 
+                 extra={
+                     "error": str(exc), 
+                     "path": request.url.path,
+                     "method": request.method,
+                     "correlation_id": correlation_id_var.get(),
+                }
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "message": "Internal server error.",
+            "correlation_id": correlation_id_var.get(),
+        }
+    )
 def get_predictor() -> DurationPredictor:
     """
     Get or initialize the predictor instance.
