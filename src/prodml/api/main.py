@@ -9,11 +9,13 @@ Provides:
 - Auto-generated OpenAPI documentation at /docs
 """
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Request
 from datetime import datetime, timezone
 import time
 import uuid
 import logging
+import os
+import hashlib
 from contextlib import asynccontextmanager
 
 from prodml.api.schemas import (
@@ -21,7 +23,8 @@ from prodml.api.schemas import (
     PredictBatchRequest,
     PredictResponse,
     PredictBatchResponse,
-    HealthResponse
+    HealthResponse,
+    MetadataResponse,
 )
 from prodml.config import settings
 from prodml.predict import DurationPredictor
@@ -69,7 +72,7 @@ app = FastAPI(
 predictor = None
 
 @app.middleware("http")
-async def correlation_id_middleware(request, call_next):
+async def correlation_id_middleware(request:Request, call_next):
     """Extracts or generates a correlation ID, stores it in contextvars, and returns header."""
     incoming_id = request.headers.get("X-Request-ID")
     correlation_id = incoming_id if incoming_id else str(uuid.uuid4())
@@ -83,6 +86,15 @@ async def correlation_id_middleware(request, call_next):
         correlation_id_var.reset(token)
         
     response.headers["X-Request-ID"] = correlation_id
+
+    logger.info(
+            "Request completed",
+            extra={
+                "correlation_id": correlation_id,
+                "status_code": response.status_code
+            }
+        )
+    
     return response
 
 def get_predictor() -> DurationPredictor:
@@ -114,6 +126,38 @@ async def health_check():
         timestamp=datetime.now(timezone.utc).isoformat()
     )
 
+# ---------- Metadata ----------
+@app.get("/metadata", response_model=MetadataResponse)
+async def metadata():
+    """
+    Get model metadata.
+    
+    Returns:
+        - model_version: Current version
+        - training_date: When the model was trained
+        - features: Feature names
+        - framework: ML framework used
+        - artifact_hash: Hash of the model file
+    """
+    if predictor is None or not predictor.is_loaded:
+        raise HTTPException(
+            status_code=503,
+            detail="Model not loaded"
+        )
+    
+    # Calculate file hash
+    model_hash = "unknown"
+    if os.path.exists(settings.model_path):
+        with open(settings.model_path, "rb") as f:
+            model_hash = hashlib.sha256(f.read()).hexdigest()[:12]
+    
+    return MetadataResponse(
+        model_version=settings.model_version or "v0.1.0",
+        training_date=datetime.utcnow().isoformat() + "Z",
+        features=["trip_distance"],
+        framework="scikit-learn",
+        artifact_hash=model_hash
+    )
 
 # ---------- Prediction Endpoints ----------
 #TODO: Planning to Refactor this (to follow DRY principle)
